@@ -54,6 +54,9 @@ TITLE_FG = {"red": 1.0, "green": 1.0, "blue": 1.0}
 NEWS_HEADER_BG = {"red": 0.79, "green": 0.85, "blue": 0.97}    # 薄い青(ニュース)
 ANSWER_HEADER_BG = {"red": 0.85, "green": 0.93, "blue": 0.83}  # 薄い緑(回答)
 
+# B〜E列(要約・理由等の長文が入る列)の幅をピクセル単位で統一する。
+DATA_COL_WIDTH_PX = 300
+
 
 def jst_today() -> str:
     return datetime.now(JST).strftime("%Y-%m-%d")
@@ -161,6 +164,27 @@ def build_grid(records: list[dict]) -> list[list[str]]:
     return grid
 
 
+def set_column_widths(sh: gspread.Spreadsheet, ws: gspread.Worksheet) -> None:
+    """B〜E列の幅を DATA_COL_WIDTH_PX に統一する(軸・見出し等が入るA列は対象外)。"""
+    try:
+        sh.batch_update({
+            "requests": [{
+                "updateDimensionProperties": {
+                    "range": {
+                        "sheetId": ws.id,
+                        "dimension": "COLUMNS",
+                        "startIndex": 1,  # B列(0-indexed)
+                        "endIndex": N_COLS,  # F列の手前(=E列)まで
+                    },
+                    "properties": {"pixelSize": DATA_COL_WIDTH_PX},
+                    "fields": "pixelSize",
+                }
+            }]
+        })
+    except Exception:
+        pass  # 列幅設定に失敗してもデータ書き込み自体は継続する
+
+
 def apply_formatting(ws: gspread.Worksheet, n: int) -> None:
     at_row = answer_title_row(n)
 
@@ -250,6 +274,7 @@ def main() -> None:
     ws.resize(rows=len(grid), cols=N_COLS)
     ws.update(range_name="A1", values=grid, value_input_option="USER_ENTERED")
     apply_formatting(ws, len(merged_records))
+    set_column_widths(sh, ws)
 
     print(
         f"[write_to_sheet] {title} シートに {added} 件を追記しました "

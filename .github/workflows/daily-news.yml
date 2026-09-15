@@ -13,7 +13,9 @@ on:
 jobs:
   collect-and-log:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 1軸あたり最大5本(合計最大20本)に増量したため、探索・要約・回答生成の時間が
+    # 従来(1軸1本、9〜10分程度)より伸びる想定で余裕を持たせている。
+    timeout-minutes: 40
     permissions:
       contents: read
       id-token: write # claude-code-action@v1 がOIDCトークン取得に必要
