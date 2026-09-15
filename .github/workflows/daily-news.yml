@@ -1,0 +1,54 @@
+name: Baycurrent Daily News Digest
+
+# 毎朝8:00(JST)に起動し、時事ニュース収集→回答例生成→Googleスプレッドシート書き込みまでを実行する。
+# 「思考」を要する収集・要約・回答例生成はClaude Code(Sonnet/Opus)が担当し、
+# スプレッドシートへの書き込みは scripts/write_to_sheet.py が決定的に行う。
+
+on:
+  schedule:
+    # cron はUTC基準。08:00 JST = 23:00 UTC(前日)
+    - cron: '0 23 * * *'
+  workflow_dispatch: {} # 手動実行・動作確認用
+
+jobs:
+  collect-and-log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Restore Google service account credentials
+        run: |
+          echo "${{ secrets.GOOGLE_SA_JSON_BASE64 }}" | base64 -d > "${{ runner.temp }}/sa.json"
+
+      - name: Run Claude Code (news collection + draft answers)
+        uses: anthropics/claude-code-action@v1
+        # NOTE: claude-code-action の入力名は変更される可能性があるため、
+        # 導入時に https://github.com/anthropics/claude-code-action の最新READMEを確認すること。
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt_file: PROMPT.md
+          allowed_tools: "WebSearch,WebFetch,Bash,Read,Write"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          TZ: Asia/Tokyo
+
+      - name: Upload output.json (debug artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-json-${{ github.run_id }}
+          path: output.json
+          if-no-files-found: warn
+          retention-days: 14
