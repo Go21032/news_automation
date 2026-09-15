@@ -14,6 +14,9 @@ jobs:
   collect-and-log:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # claude-code-action@v1 がOIDCトークン取得に必要
 
     steps:
       - name: Checkout repository
@@ -31,14 +34,25 @@ jobs:
         run: |
           echo "${{ secrets.GOOGLE_SA_JSON_BASE64 }}" | base64 -d > "${{ runner.temp }}/sa.json"
 
+      - name: Load prompt from PROMPT.md
+        id: load_prompt
+        run: |
+          {
+            echo 'content<<PROMPT_EOF'
+            cat PROMPT.md
+            echo PROMPT_EOF
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run Claude Code (news collection + draft answers)
         uses: anthropics/claude-code-action@v1
         # NOTE: claude-code-action の入力名は変更される可能性があるため、
         # 導入時に https://github.com/anthropics/claude-code-action の最新READMEを確認すること。
+        # v1では prompt_file / allowed_tools は廃止され、prompt / claude_args に統合された(2026-09時点)。
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt_file: PROMPT.md
-          allowed_tools: "WebSearch,WebFetch,Bash,Read,Write"
+          prompt: ${{ steps.load_prompt.outputs.content }}
+          claude_args: |
+            --allowedTools "WebSearch,WebFetch,Bash,Read,Write"
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
