@@ -158,8 +158,15 @@ def build_grid(records: list[dict]) -> list[list[str]]:
     grid[at_row - 1][0] = ANSWER_TITLE
     grid[at_row] = ANSWER_HEADER[:]
     for i, r in enumerate(records):
+        # 立場に軸番号を付加(空でない場合のみ)
+        # 例: 軸="①AI・技術×雇用", 立場="賛成" → "①賛成"
+        tachiba = r["立場"]
+        if tachiba:
+            axis_num = r["軸"][0]  # "①" など、最初の1文字を抽出
+            tachiba = f"{axis_num}{tachiba}"
+
         grid[at_row + 1 + i] = [
-            r["立場"], r["理由1"], r["理由2"], r["反論と返し"], r["コンサル視点"],
+            tachiba, r["理由1"], r["理由2"], r["反論と返し"], r["コンサル視点"],
         ]
     return grid
 
