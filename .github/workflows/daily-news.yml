@@ -50,6 +50,11 @@ jobs:
         # v1では prompt_file / allowed_tools は廃止され、prompt / claude_args に統合された(2026-09時点)。
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # github_token を明示的に渡すことで、OIDC→「Claude Code」GitHub App
+          # トークン交換(このリポジトリには未インストールで401になる)をスキップする。
+          # このワークフローはPR/コメント等のGitHub書き込み機能を使わないため、
+          # 既定の GITHUB_TOKEN で十分。
+          github_token: ${{ github.token }}
           prompt: ${{ steps.load_prompt.outputs.content }}
           claude_args: |
             --allowedTools "WebSearch,WebFetch,Bash,Read,Write"
